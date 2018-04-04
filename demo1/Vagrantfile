@@ -1,0 +1,44 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# Vagrantfile API/syntax version. Don't touch unless you know what you're doing!
+VAGRANTFILE_API_VERSION = '2'
+
+Vagrant.require_version '>= 1.5.0'
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+
+  config.omnibus.chef_version = "12.19.36"
+  config.berkshelf.enabled = true
+  config.berkshelf.berksfile_path = 'cookbooks/Berksfile'
+
+  config.vm.box = 'bento/centos-6.9'
+
+  config.vm.define "node1" do |node1|
+    node1.vm.hostname = 'node1.local'
+    node1.vm.provider :virtualbox do |vb|
+      vb.customize ["modifyvm", :id, "--memory", "2048"]
+      vb.customize ["modifyvm", :id, "--cpuexecutioncap", "80"]
+    end
+
+    node1.vm.network :private_network, ip: '10.1.1.10'
+
+    node1.vm.provision 'chef_solo' do |solo|
+      solo.add_recipe 'gl_hosts'
+    end
+  end
+
+  config.vm.define "node2" do |node2|
+    node2.vm.hostname = 'node2.local'
+    node2.vm.provider :virtualbox do |vb|
+      vb.customize ["modifyvm", :id, "--memory", "2048"]
+      vb.customize ["modifyvm", :id, "--cpuexecutioncap", "80"]
+    end
+
+    node2.vm.network :private_network, ip: '10.1.1.20'
+
+    node2.vm.provision 'chef_solo' do |solo|
+      solo.add_recipe 'gl_hosts'
+    end
+  end
+end

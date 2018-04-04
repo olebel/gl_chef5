@@ -1,0 +1,5 @@
+source 'https://supermarket.chef.io'
+
+cookbook 'gl_hosts', path: "./gl_hosts"
+cookbook 'chef-dk'
+cookbook 'git'

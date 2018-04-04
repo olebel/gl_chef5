@@ -1,0 +1,60 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# Vagrantfile API/syntax version. Don't touch unless you know what you're doing!
+VAGRANTFILE_API_VERSION = '2'
+
+Vagrant.require_version '>= 1.5.0'
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+
+  # config.omnibus.chef_version = "12.19.36"
+  # config.berkshelf.enabled = true
+  # config.berkshelf.berksfile_path = 'cookbooks/Berksfile'
+
+  config.vm.box = 'bento/centos-6.9'
+
+  config.vm.define "workstation" do |ws|
+    ws.omnibus.chef_version = "12.19.36"
+    ws.berkshelf.enabled = true
+    ws.berkshelf.berksfile_path = 'cookbooks/Berksfile'
+
+    ws.vm.hostname = 'workstation.local'
+    ws.vm.provider :virtualbox do |vb|
+      vb.customize ["modifyvm", :id, "--memory", "2048"]
+      vb.customize ["modifyvm", :id, "--cpuexecutioncap", "80"]
+    end
+
+    ws.vm.network :private_network, ip: '10.1.1.10'
+
+    ws.vm.provision 'chef_solo' do |solo|
+      solo.add_recipe 'gl_hosts'
+    end
+
+    ws.vm.provision 'chef_solo' do |solo|
+      solo.add_recipe 'git'
+      solo.add_recipe 'chef-dk'
+      solo.json = {
+        'chef_dk' => {
+          'version' => '1.4.3'
+        }
+      }
+    end
+  end
+
+  config.vm.define "node2" do |node2|
+    node2.vm.hostname = 'node2.local'
+    node2.vm.provider :virtualbox do |vb|
+      vb.customize ["modifyvm", :id, "--memory", "4096"]
+      vb.customize ["modifyvm", :id, "--cpuexecutioncap", "80"]
+
+    end
+
+    node2.vm.network :private_network, ip: '10.1.1.20'
+    node2.vm.network "forwarded_port", guest: 80, host: 3080
+    node2.vm.network "forwarded_port", guest: 443, host: 3443
+
+    node2.vm.provision 'file', source: './hosts', destination: '/tmp/hosts'
+    node2.vm.provision 'shell', inline: 'sudo cp /tmp/hosts /etc/hosts'
+  end
+end

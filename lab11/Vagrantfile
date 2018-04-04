@@ -1,0 +1,78 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# Vagrantfile API/syntax version. Don't touch unless you know what you're doing!
+VAGRANTFILE_API_VERSION = '2'
+
+Vagrant.require_version '>= 1.5.0'
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+
+  config.vm.box = 'bento/centos-6.9'
+
+  config.vm.define "workstation" do |ws|
+    ws.omnibus.chef_version = "12.19.36"
+    ws.berkshelf.enabled = true
+    ws.berkshelf.berksfile_path = 'cookbooks/Berksfile'
+
+    ws.vm.hostname = 'workstation.local'
+    ws.vm.provider :virtualbox do |vb|
+      vb.customize ["modifyvm", :id, "--memory", "2048"]
+      vb.customize ["modifyvm", :id, "--cpuexecutioncap", "20"]
+    end
+
+    ws.vm.network :private_network, ip: '10.1.1.10'
+
+    ws.vm.provision 'chef_solo' do |solo|
+      solo.add_recipe 'gl_hosts'
+    end
+
+    ws.vm.provision 'chef_solo' do |solo|
+      solo.add_recipe 'git'
+      solo.add_recipe 'chef-dk'
+      solo.json = {
+        'chef_dk' => {
+          'version' => '1.4.3'
+        }
+      }
+    end
+  end
+
+  config.vm.define "chef_server" do |cs|
+    cs.omnibus.chef_version = "12.19.36"
+    cs.berkshelf.enabled = true
+    cs.berkshelf.berksfile_path = 'cookbooks/Berksfile'
+
+    cs.vm.hostname = 'chef.local'
+    cs.vm.provider :virtualbox do |vb|
+      vb.customize ["modifyvm", :id, "--memory", "4096"]
+      vb.customize ["modifyvm", :id, "--cpuexecutioncap", "40"]
+    end
+
+    cs.vm.network :private_network, ip: '10.1.1.20'
+
+    cs.vm.network "forwarded_port", guest: 80, host: 3080
+    cs.vm.network "forwarded_port", guest: 443, host: 3443
+
+    cs.vm.provision 'chef_solo' do |solo|
+      solo.add_recipe 'gl_hosts'
+    end
+
+    cs.vm.provision 'chef_solo' do |solo|
+      solo.add_recipe 'gl_chef_server'
+    end
+  end
+
+  config.vm.define "node3" do |node3|
+    node3.vm.hostname = 'node3.local'
+    node3.vm.provider :virtualbox do |vb|
+      vb.customize ["modifyvm", :id, "--memory", "2048"]
+      vb.customize ["modifyvm", :id, "--cpuexecutioncap", "20"]
+    end
+
+    node3.vm.network :private_network, ip: '10.1.1.30'
+
+    node3.vm.provision 'file', source: './hosts', destination: '/tmp/hosts'
+    node3.vm.provision 'shell', inline: 'sudo cp /tmp/hosts /etc/hosts'
+  end
+end
